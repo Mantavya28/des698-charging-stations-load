@@ -6,11 +6,6 @@ __pycache__/
 env/
 venv/
 ENV/
-env.bak/
-venv.bak/
-.streamlit/
+.DS_Store
 *.log
 simulation_results.json
-voronoi_debug.log
-redist_debug.log
-.DS_Store

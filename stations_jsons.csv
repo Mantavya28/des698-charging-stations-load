@@ -1,0 +1,9 @@
+id,name,lat,lon,chargers,bays,inventory_cap,arrival_rate,service_rate,status
+ST001,Connaught Place Hub,28.6315,77.2167,20,3,30,5.0,0.5,healthy
+ST002,Karol Bagh Station,28.6518,77.1901,15,2,20,3.5,0.5,healthy
+ST003,Nehru Place Center,28.5491,77.2537,18,3,25,4.0,0.5,healthy
+ST004,Dwarka Express,28.5921,77.0460,25,4,35,6.0,0.5,healthy
+ST005,Rohini Junction,28.7273,77.1376,22,3,30,5.5,0.5,healthy
+ST006,Lajpat Nagar Point,28.5700,77.2373,16,2,22,3.8,0.5,healthy
+ST007,Saket Mall Station,28.5244,77.2066,14,2,18,3.2,0.5,healthy
+ST008,Mayur Vihar Hub,28.5987,77.2952,12,2,15,2.8,0.5,healthy
