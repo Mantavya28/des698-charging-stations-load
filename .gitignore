@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.streamlit/
+*.log
+simulation_results.json
+voronoi_debug.log
+redist_debug.log
+.DS_Store

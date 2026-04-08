@@ -1,0 +1,7 @@
+id,name,lat,lon,chargers,bays,inventory_cap,arrival_rate,service_rate,status
+ST001,Connaught Place Hub,28.6315,77.2167,20,4,20,8.5,0.5,healthy
+ST002,Dwarka Sector 21,28.552,77.0585,20,3,20,5.2,0.5,healthy
+ST003,Rohini West,28.716,77.114,20,4,20,6.8,0.5,warning
+ST004,Nehru Place,28.5494,77.2501,20,4,20,7.2,0.5,healthy
+ST005,Mayur Vihar Ph-1,28.613,77.29,20,2,20,4.1,0.5,critical
+ST006,Hauz Khas Village,28.553,77.206,20,3,20,5.5,0.5,healthy
