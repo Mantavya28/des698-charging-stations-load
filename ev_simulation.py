@@ -206,8 +206,9 @@ class EVChargingSimulation:
         self.evs: Dict[int, EV] = {}
         self._ev_counter = 0
 
-        # Priority event queue: (time, event_type, payload_dict)
-        self._event_queue: List[Tuple[float, str, dict]] = []
+        # Priority event queue: (time, counter, event_type, payload_dict)
+        self._event_queue: List[Tuple[float, int, str, dict]] = []
+        self._event_id_counter = 0
 
         # Load time series: list of (time_min, total_kw)
         self.load_time_series: List[Tuple[float, float]] = []
@@ -220,10 +221,12 @@ class EVChargingSimulation:
     # ── Internal helpers ──────────────────────────────────────────────────────
 
     def _push(self, time: float, etype: str, payload: dict):
-        heapq.heappush(self._event_queue, (time, etype, payload))
+        heapq.heappush(self._event_queue, (time, self._event_id_counter, etype, payload))
+        self._event_id_counter += 1
 
     def _pop(self) -> Tuple[float, str, dict]:
-        return heapq.heappop(self._event_queue)
+        time, count, etype, payload = heapq.heappop(self._event_queue)
+        return time, etype, payload
 
     def _new_ev(self, arrival_time: float) -> EV:
         ev = EV(
