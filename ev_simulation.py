@@ -114,7 +114,7 @@ def charging_time_fast(ev: EV, p_max: float) -> float:
     # dt/dsoc = battery_kwh / power  → total_time = integral(battery_kwh/P ds)
     d_soc   = (ev.target_soc - ev.soc) / (n_steps - 1)
     inv_pwr = np.where(powers > 0, 1.0 / powers, 0.0)
-    hours   = float(np.trapz(inv_pwr, dx=d_soc) * ev.battery_kwh)
+    hours   = float(np.trapezoid(inv_pwr, dx=d_soc) * ev.battery_kwh)
     return hours * 60.0   # → minutes
 
 
