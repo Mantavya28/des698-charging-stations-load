@@ -160,20 +160,6 @@ with st.sidebar:
     queue_mult   = st.slider("Queue capacity (× c)",   1, 5, 2,
                              help="Max queue depth per station = multiplier × chargers")
 
-    # ── Derived parameters summary ────
-    e_bat     = round(0.8 * battery_kwh, 2)
-    t_chr_min = round(e_bat / charger_kw * 60, 0)
-    total_c   = num_stations * chargers_per
-
-    st.markdown(f"""
-<div class="param-box">
-  <p>⚡ Energy / battery: <strong>{e_bat} kWh</strong></p>
-  <p>⏱ Charge time: <strong>{t_chr_min:.0f} min</strong></p>
-  <p>🔋 Total chargers: <strong>{total_c}</strong></p>
-  <p>📋 Queue cap / station: <strong>{queue_mult * chargers_per}</strong></p>
-  <p>🏙️ Max city load: <strong>{total_c * charger_kw:,.0f} kW</strong></p>
-</div>
-""", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
     run_btn = st.button("▶  Run Simulation", use_container_width=True, type="primary")
