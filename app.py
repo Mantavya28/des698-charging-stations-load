@@ -162,34 +162,49 @@ with st.sidebar:
     st.caption("City-Level EV Charging Simulation")
     st.markdown("---")
 
-    st.markdown("**🏙️ City Demand Peaks**")
-    m_peak = st.slider("Morning Peak (EVs/15 min)", 10, 500, 120, step=5,
-                       help="Peak arrivals around 09:00")
-    e_peak = st.slider("Evening Peak (EVs/15 min)", 10, 500, 150, step=5,
-                       help="Peak arrivals around 18:30")
-
-    DYNAMIC_CURVE = generate_simulation_curve(m_peak, e_peak)
+    st.markdown("### 🚗 EV Population")
+    N_EV = st.number_input("Total EVs in City", min_value=1000, max_value=10_000_000, value=100_000, step=10_000)
+    f_charge = st.slider("% EVs Charging Daily", 0.1, 0.6, 0.3)
+    
+    N_daily = N_EV * f_charge
+    curve_normalized = BASE_CURVE / BASE_CURVE.sum()
+    DYNAMIC_CURVE = curve_normalized * N_daily
 
     st.markdown("**🏬 Network Configuration**")
-    num_stations = st.slider("Number of stations",   1, 20,  8)
+    num_stations = st.slider("Number of stations", 1, 100, 8)
     
-    st.markdown("**⚡ Fast Chargers (DC)**")
-    n_fast = st.slider("Fast chargers / station", 0, 20, 5)
-    p_fast = st.slider("Fast charger power (kW)", 25.0, 150.0, 50.0, step=5.0)
+    use_iea_constraints = st.checkbox("Apply India (STEPS 2030) Infra Constraints", value=True)
+    if use_iea_constraints:
+        total_chargers = N_EV / 7
+        total_power = 3 * N_EV
+        st.info(f"IEA Policy: {int(total_chargers):,} chargers, {int(total_power):,} kW cap.")
+    else:
+        total_chargers = st.number_input("Total Public Chargers", min_value=1, value=int(N_EV / 7))
+        total_power = st.number_input("Total Charger Power (kW)", min_value=1.0, value=float(3 * N_EV))
 
-    st.markdown("**🔌 Slow Chargers (AC)**")
-    n_slow = st.slider("Slow chargers / station", 0, 20, 5)
-    p_slow = st.slider("Slow charger power (kW)", 3.3, 22.0, 7.4, step=0.1)
+    st.markdown("**⚡ Charger Mix**")
+    fast_share = st.slider("Fast Charging Share", 0.0, 1.0, 0.4)
+    p_fast = st.number_input("Fast Charger Power (kW)", value=60.0)
+    p_slow = st.number_input("Slow Charger Power (kW)", value=7.4)
+
+    N_fast = int(total_chargers * fast_share)
+    N_slow = int(total_chargers * (1 - fast_share))
+    n_fast = max(0, int(N_fast / num_stations))
+    n_slow = max(0, int(N_slow / num_stations))
+
+    avg_fast_time = 30  # minutes
+    avg_slow_time = 240 # minutes
+    fast_capacity = N_fast * (15 / avg_fast_time)
+    slow_capacity = N_slow * (15 / avg_slow_time)
+    capacity_per_slot = fast_capacity + slow_capacity
 
     st.markdown("**🔋 Vehicle Specs**")
-    battery_kwh  = st.slider("Battery capacity (kWh)", 10.0, 100.0, 30.0,
-                              step=1.0, format="%.0f kWh")
+    battery_kwh  = st.slider("Battery capacity (kWh)", 10.0, 100.0, 30.0, step=1.0, format="%.0f kWh")
 
     st.markdown("**🏠 Home Charging**")
-    n_home_evs   = st.slider("Home-charging EVs (evening)", 0, 500, 50,
-                              help="EVs charging at home 18:00–22:00")
-    home_power   = st.slider("Home charger power (kW)", 1.5, 22.0, 3.3,
-                              step=0.1, format="%.1f kW")
+    home_share = st.slider("Home Charging Share", 0.0, 1.0, 0.6)
+    n_home_evs = int(N_daily * home_share)
+    home_power = st.slider("Home charger power (kW)", 1.5, 22.0, 3.3, step=0.1, format="%.1f kW")
 
     st.markdown("<br>", unsafe_allow_html=True)
     run_btn = st.button("▶  Run Simulation", use_container_width=True, type="primary")
@@ -209,25 +224,35 @@ st.markdown("""
 
 
 # ── DEMAND CURVE PREVIEW ──────────────────────────────────────────────────────
-st.markdown('<div class="sec-head">📈 City Demand Profile</div>', unsafe_allow_html=True)
+st.markdown('<div class="sec-head">📈 City Demand Profile vs Capacity</div>', unsafe_allow_html=True)
+peak = DYNAMIC_CURVE.max()
 st.markdown(
-    f'<div class="sec-sub">Typical 24-hour EV charging demand curve derived from historical data &nbsp;·&nbsp; '
-    f'Expected Peak = {int(np.max(DYNAMIC_CURVE))} EVs / 15 min</div>',
+    f'<div class="sec-sub">Derived from EV population and charging behavior &nbsp;·&nbsp; '
+    f'Derived Peak = {int(peak)} EVs / 15 min</div>',
     unsafe_allow_html=True,
 )
 
 with st.container():
-    fig_d, ax_d = plt.subplots(figsize=(12, 2.4))
+    fig_d, ax_d = plt.subplots(figsize=(12, 3.6))
     fig_d.patch.set_facecolor("white")
     ax_d.set_facecolor("#F8FAFC")
 
     slots    = np.arange(96)
-    max_val  = np.max(DYNAMIC_CURVE)
 
-    ax_d.fill_between(slots, DYNAMIC_CURVE, alpha=0.12, color="#2563EB")
-    ax_d.plot(slots, DYNAMIC_CURVE, color="#2563EB", linewidth=2.0)
-    ax_d.axhline(max_val, color="#EF4444", linewidth=1.0, linestyle="--",
-                 alpha=0.55, label=f"Peak = {max_val:.0f}")
+    ax_d.plot(slots, DYNAMIC_CURVE, color="#2563EB", linewidth=2.0, label="Charging Demand (EVs / 15 min)")
+    # Capacity line
+    ax_d.axhline(y=capacity_per_slot, color="#EF4444", linewidth=1.5, linestyle="--", label="Service Capacity")
+    # Overload region
+    ax_d.fill_between(
+        slots,
+        DYNAMIC_CURVE,
+        capacity_per_slot,
+        where=(DYNAMIC_CURVE > capacity_per_slot),
+        color="#EF4444",
+        alpha=0.3,
+        label="Capacity Overload",
+        interpolate=True
+    )
 
     ax_d.set_xlim(0, 95)
     ax_d.set_ylim(0)
@@ -277,13 +302,17 @@ if st.session_state.results:
     st.markdown('<div class="sec-head">📊 Grid Load Metrics</div>', unsafe_allow_html=True)
     c1, c2, c3, c4, c5, c6 = st.columns(6)
 
+    overload = DYNAMIC_CURVE > capacity_per_slot
+    overload_fraction = overload.sum() / len(DYNAMIC_CURVE)
+    utilization = DYNAMIC_CURVE.mean() / capacity_per_slot if capacity_per_slot > 0 else 0
+
     for col, label, value, unit, cls in [
-        (c1, "Peak Load",     f"{r['peak_kw']:,.0f}",          "kW",         "blue"),
-        (c2, "Cumulative Demand", f"{r['total_arrived']:,}",         "Total EVs",  "green"),
-        (c3, "Load Factor",   f"{r['load_factor']:.2f}",        "avg / peak", "orange"),
-        (c4, "Avg Load",      f"{r['avg_kw']:,.0f}",            "kW",         "purple"),
-        (c5, "EVs Served",    f"{r['total_served']:,}",          "EVs",        "teal"),
-        (c6, "Dropped",       f"{r['total_dropped_pct']:.1f}",  "%",          "red"),
+        (c1, "Derived Peak",  f"{int(peak):,}",                "EVs/15min",  "blue"),
+        (c2, "Avg Util",      f"{utilization:.2f}",           "ratio",      "orange"),
+        (c3, "Overload Time", f"{overload_fraction * 100:.1f}", "% slots",    "red"),
+        (c4, "Peak Load",     f"{r['peak_kw']:,.0f}",          "kW",         "purple"),
+        (c5, "Cumul. Demand", f"{r['total_arrived']:,}",       "EVs",        "green"),
+        (c6, "Dropped",       f"{r['total_dropped_pct']:.1f}", "%",          "teal"),
     ]:
         with col:
             st.markdown(f"""
