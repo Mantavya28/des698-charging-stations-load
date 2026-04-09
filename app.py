@@ -3,7 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
-from simulation import run_simulation, load_demand_curve, generate_simulation_curve
+from simulation import load_demand_curve, generate_simulation_curve
+from ev_simulation import run_ev_simulation
 
 # ── PAGE CONFIG ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -73,6 +74,8 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 .green  { color: #047857; }
 .orange { color: #B45309; }
 .purple { color: #6D28D9; }
+.red    { color: #B91C1C; }
+.teal   { color: #0F766E; }
 
 /* ── Section headers ─────────────────────── */
 .sec-head {
@@ -122,6 +125,20 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     text-align: center;
     margin-top: 12px;
 }
+
+/* ── Engine badge ────────────────────────── */
+.engine-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #1D4ED8, #7C3AED);
+    color: white;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 3px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    margin-bottom: 18px;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -138,28 +155,34 @@ BASE_CURVE = get_base_curve()
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("## ⚡ Load Engine")
-    st.caption("City-Level EV Battery Swap Simulation")
+    st.caption("City-Level EV Charging Simulation")
     st.markdown("---")
 
     st.markdown("**🏙️ City Demand Peaks**")
-    m_peak = st.slider("Morning Peak (swaps/15min)", 10, 500, 120, step=5, help="Peak arrivals around 09:00")
-    e_peak = st.slider("Evening Peak (swaps/15min)", 10, 500, 150, step=5, help="Peak arrivals around 18:30")
+    m_peak = st.slider("Morning Peak (swaps/15 min)", 10, 500, 120, step=5,
+                       help="Peak arrivals around 09:00")
+    e_peak = st.slider("Evening Peak (swaps/15 min)", 10, 500, 150, step=5,
+                       help="Peak arrivals around 18:30")
 
-    # Generate the curve based on user selection
     DYNAMIC_CURVE = generate_simulation_curve(m_peak, e_peak)
 
     st.markdown("**🏬 Network Configuration**")
-    num_stations = st.slider("Number of stations",     1, 20, 8)
-    chargers_per = st.slider("Chargers per station",   2, 30, 10)
+    num_stations = st.slider("Number of stations",   1, 20,  8)
+    chargers_per = st.slider("Chargers per station", 2, 30, 10)
 
     st.markdown("**🔌 Charger Specifications**")
-    charger_kw   = st.slider("Charger power (kW)",     3.3, 50.0, 7.4, step=0.1, format="%.1f kW")
-    battery_kwh  = st.slider("Battery capacity (kWh)", 1.0, 10.0, 2.5, step=0.1, format="%.1f kWh")
+    charger_type = st.selectbox("Charger type", ["fast", "slow"])
+    charger_kw   = st.slider("Charger power (kW)", 3.3, 150.0, 50.0
+                             if charger_type == "fast" else 7.4,
+                             step=0.1, format="%.1f kW")
+    battery_kwh  = st.slider("Battery capacity (kWh)", 10.0, 100.0, 30.0,
+                              step=1.0, format="%.0f kWh")
 
-    st.markdown("**⚙️ Queue Parameters**")
-    queue_mult   = st.slider("Queue capacity (× c)",   1, 5, 2,
-                             help="Max queue depth per station = multiplier × chargers")
-
+    st.markdown("**🏠 Home Charging**")
+    n_home_evs   = st.slider("Home-charging EVs (evening)", 0, 500, 50,
+                              help="EVs charging at home 18:00–22:00")
+    home_power   = st.slider("Home charger power (kW)", 1.5, 22.0, 3.3,
+                              step=0.1, format="%.1f kW")
 
     st.markdown("<br>", unsafe_allow_html=True)
     run_btn = st.button("▶  Run Simulation", use_container_width=True, type="primary")
@@ -168,12 +191,13 @@ with st.sidebar:
 # ── HEADER ────────────────────────────────────────────────────────────────────
 st.markdown("""
 <h1 style="font-size:1.85rem;font-weight:800;color:#0F172A;margin:0 0 4px;">
-  ⚡ City-Level EV Battery Swap – Charging Load Engine
+  ⚡ City-Level EV Charging – Load Engine
 </h1>
-<p style="color:#64748B;font-size:0.88rem;margin:0 0 24px;">
-  M/M/c/K discrete-event simulation &nbsp;·&nbsp; 15-min resolution &nbsp;·&nbsp;
-  Demand → Queue → Charging → Grid Load (kW)
+<p style="color:#64748B;font-size:0.88rem;margin:0 0 8px;">
+  Event-driven discrete simulation &nbsp;·&nbsp; Dynamic SoC-based power &nbsp;·&nbsp;
+  Station utility routing &nbsp;·&nbsp; Home charging integration
 </p>
+<span class="engine-badge">🔬 Event-Driven · M/G/c/K · heapq priority queue</span>
 """, unsafe_allow_html=True)
 
 
@@ -190,19 +214,19 @@ with st.container():
     fig_d.patch.set_facecolor("white")
     ax_d.set_facecolor("#F8FAFC")
 
-    slots = np.arange(96)
-    scaled = DYNAMIC_CURVE
-    max_val = np.max(scaled)
+    slots    = np.arange(96)
+    max_val  = np.max(DYNAMIC_CURVE)
 
-    ax_d.fill_between(slots, scaled, alpha=0.12, color="#2563EB")
-    ax_d.plot(slots, scaled, color="#2563EB", linewidth=2.0)
-    ax_d.axhline(max_val, color="#EF4444", linewidth=1.0, linestyle="--", alpha=0.55,
-                 label=f"Peak = {max_val:.0f}")
+    ax_d.fill_between(slots, DYNAMIC_CURVE, alpha=0.12, color="#2563EB")
+    ax_d.plot(slots, DYNAMIC_CURVE, color="#2563EB", linewidth=2.0)
+    ax_d.axhline(max_val, color="#EF4444", linewidth=1.0, linestyle="--",
+                 alpha=0.55, label=f"Peak = {max_val:.0f}")
 
     ax_d.set_xlim(0, 95)
     ax_d.set_ylim(0)
     ax_d.set_xticks([0, 16, 32, 48, 64, 80, 95])
-    ax_d.set_xticklabels(["00:00", "04:00", "08:00", "12:00", "16:00", "20:00", "23:45"], fontsize=8)
+    ax_d.set_xticklabels(["00:00", "04:00", "08:00", "12:00",
+                           "16:00", "20:00", "23:45"], fontsize=8)
     ax_d.set_ylabel("Swaps / 15 min", fontsize=8)
     ax_d.spines[["top", "right"]].set_visible(False)
     ax_d.tick_params(labelsize=8)
@@ -221,31 +245,37 @@ if "results" not in st.session_state:
     st.session_state.results = None
 
 if run_btn:
-    with st.spinner("Running M/M/c/K simulation…"):
-        st.session_state.results = run_simulation(
+    with st.spinner("Running event-driven simulation…"):
+        norm_curve = DYNAMIC_CURVE / (np.max(DYNAMIC_CURVE) if np.max(DYNAMIC_CURVE) > 0 else 1)
+        st.session_state.results = run_ev_simulation(
             max_demand=int(np.max(DYNAMIC_CURVE)),
-            demand_curve=DYNAMIC_CURVE / (np.max(DYNAMIC_CURVE) if np.max(DYNAMIC_CURVE) > 0 else 1),
+            demand_curve=norm_curve,
             num_stations=num_stations,
             chargers_per_station=chargers_per,
             charger_power_kw=charger_kw,
             battery_kwh=battery_kwh,
-            queue_multiplier=queue_mult,
+            charger_type=charger_type,
+            n_home_evs=n_home_evs,
+            home_power_kw=home_power,
         )
 
 
 if st.session_state.results:
-    r = st.session_state.results
+    r    = st.session_state.results
     load = np.array(r["load_curve"])
+    slots = np.arange(len(load))
 
-    # ── KPI CARDS ─────────────────────────────────────────────────────────────
+    # ── KPI CARDS ─────────────────────────────────────────────────────────
     st.markdown('<div class="sec-head">📊 Grid Load Metrics</div>', unsafe_allow_html=True)
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
 
     for col, label, value, unit, cls in [
-        (c1, "Peak Load",    f"{r['peak_kw']:,.0f}",    "kW",        "blue"),
-        (c2, "Daily Energy", f"{r['total_kwh']:,.0f}",  "kWh",       "green"),
-        (c3, "Load Factor",  f"{r['load_factor']:.2f}", "avg / peak","orange"),
-        (c4, "Avg Load",     f"{r['avg_kw']:,.0f}",     "kW",        "purple"),
+        (c1, "Peak Load",     f"{r['peak_kw']:,.0f}",          "kW",         "blue"),
+        (c2, "Daily Energy",  f"{r['total_kwh']:,.0f}",         "kWh",        "green"),
+        (c3, "Load Factor",   f"{r['load_factor']:.2f}",        "avg / peak", "orange"),
+        (c4, "Avg Load",      f"{r['avg_kw']:,.0f}",            "kW",         "purple"),
+        (c5, "EVs Served",    f"{r['total_served']:,}",          "EVs",        "teal"),
+        (c6, "Dropped",       f"{r['total_dropped_pct']:.1f}",  "%",          "red"),
     ]:
         with col:
             st.markdown(f"""
@@ -257,61 +287,72 @@ if st.session_state.results:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── LOAD CURVE ─────────────────────────────────────────────────────────────
+    # ── LOAD CURVE ─────────────────────────────────────────────────────────
     st.markdown('<div class="sec-head">⚡ Grid Load Curve (kW)</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="sec-sub">Aggregated charging load across all stations · 15-min resolution</div>',
+        '<div class="sec-sub">Station charging load + home charging &nbsp;·&nbsp; 15-min resolution</div>',
         unsafe_allow_html=True,
     )
+
+    # Decompose station vs home load into 15-min slots
+    home_min    = np.array(r.get("home_load_min", [0] * 1440))
+    station_min = np.array(r.get("station_load_min", [0] * 1440))
+    n_slots     = len(load)
+
+    home_15    = np.array([np.mean(home_min[i*15:(i+1)*15]) for i in range(n_slots)])
+    station_15 = np.array([np.mean(station_min[i*15:(i+1)*15]) for i in range(n_slots)])
 
     fig, ax = plt.subplots(figsize=(12, 3.6))
     fig.patch.set_facecolor("white")
     ax.set_facecolor("#F8FAFC")
 
-    ax.fill_between(slots, load, alpha=0.13, color="#2563EB")
-    ax.plot(slots, load, color="#2563EB", linewidth=2.2, label="Load (kW)")
-    ax.axhline(r["peak_kw"], color="#EF4444", linewidth=1.2, linestyle="--", alpha=0.75,
-               label=f"Peak  {r['peak_kw']:,.0f} kW")
-    ax.axhline(r["avg_kw"],  color="#F59E0B", linewidth=1.2, linestyle=":",  alpha=0.85,
-               label=f"Avg  {r['avg_kw']:,.0f} kW")
+    ax.stackplot(slots, station_15, home_15,
+                 labels=["Station charging (kW)", "Home charging (kW)"],
+                 colors=["#2563EB", "#F59E0B"], alpha=0.75)
 
-    # Max installed capacity reference
+    ax.axhline(r["peak_kw"], color="#EF4444", linewidth=1.2, linestyle="--",
+               alpha=0.75, label=f"Peak  {r['peak_kw']:,.0f} kW")
+    ax.axhline(r["avg_kw"],  color="#10B981", linewidth=1.2, linestyle=":",
+               alpha=0.85, label=f"Avg  {r['avg_kw']:,.0f} kW")
+
     max_cap = num_stations * chargers_per * charger_kw
-    ax.axhline(max_cap, color="#94A3B8", linewidth=0.9, linestyle="-.", alpha=0.55,
-               label=f"Installed capacity  {max_cap:,.0f} kW")
+    ax.axhline(max_cap, color="#94A3B8", linewidth=0.9, linestyle="-.",
+               alpha=0.55, label=f"Installed capacity  {max_cap:,.0f} kW")
 
-    ax.set_xlim(0, 95)
-    ax.set_ylim(0, max(max_cap * 1.05, r["peak_kw"] * 1.1))
-    ax.set_xticks([0, 16, 32, 48, 64, 80, 95])
-    ax.set_xticklabels(["00:00", "04:00", "08:00", "12:00", "16:00", "20:00", "23:45"], fontsize=9)
+    xticks = [0, 16, 32, 48, 64, 80, n_slots - 1]
+    ax.set_xlim(0, n_slots - 1)
+    ax.set_ylim(0, max(max_cap * 1.05, r["peak_kw"] * 1.1, 1))
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(["00:00", "04:00", "08:00", "12:00",
+                         "16:00", "20:00", "23:45"], fontsize=9)
     ax.set_ylabel("Load (kW)", fontsize=9)
     ax.set_xlabel("Time of Day", fontsize=9)
     ax.spines[["top", "right"]].set_visible(False)
     ax.tick_params(labelsize=9)
     ax.grid(axis="y", alpha=0.25, linewidth=0.6)
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x:,.0f}"))
-    ax.legend(fontsize=9, framealpha=0, ncol=2)
+    ax.legend(fontsize=8, framealpha=0, ncol=2)
 
     plt.tight_layout(pad=0.6)
     st.pyplot(fig, use_container_width=True)
     plt.close(fig)
 
-    # ── SECONDARY METRICS ──────────────────────────────────────────────────────
+    # ── SECONDARY METRICS ──────────────────────────────────────────────────
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<div class="sec-head">🔧 Simulation Summary</div>', unsafe_allow_html=True)
 
-    col_a, col_b = st.columns(2)
+    col_a, col_b, col_c = st.columns(3)
 
     with col_a:
-        st.markdown("**Charging Parameters**")
+        st.markdown("**EV & Battery Parameters**")
         st.markdown(f"""
 | Parameter | Value |
 |---|---|
-| Energy per battery (80% SoC) | **{r['e_battery_kwh']} kWh** |
-| Charge time | **{r['charge_duration_min']:.0f} min** |
-| Charger power | **{charger_kw} kW** |
-| Chargers per station | **{chargers_per}** |
-| Total chargers in city | **{num_stations * chargers_per}** |
+| Battery capacity | **{battery_kwh:.0f} kWh** |
+| Target SoC | **80%** |
+| Energy per charge | **{r['e_battery_kwh']} kWh** |
+| Avg charge duration | **{r['charge_duration_min']:.0f} min** |
+| Charger type | **{charger_type.capitalize()}** |
 """)
 
     with col_b:
@@ -320,10 +361,22 @@ if st.session_state.results:
 | Parameter | Value |
 |---|---|
 | Stations | **{num_stations}** |
-| Queue capacity per station | **{queue_mult * chargers_per}** |
+| Chargers per station | **{chargers_per}** |
+| Installed capacity | **{r['installed_kw']:,.0f} kW** |
 | Charger utilisation | **{r['utilization_pct']:.1f}%** |
-| Batteries served (day) | **{r['total_served']:,}** |
-| Batteries dropped (queue full) | **{r['total_dropped']:,}** |
+| Max wait threshold | **10 min** |
+""")
+
+    with col_c:
+        st.markdown("**EV Flow**")
+        st.markdown(f"""
+| Metric | Value |
+|---|---|
+| Total arrivals | **{r['total_arrived']:,}** |
+| EVs served | **{r['total_served']:,}** |
+| EVs dropped | **{r['total_dropped']:,}** |
+| Drop rate | **{r['total_dropped_pct']:.1f}%** |
+| Home-charging EVs | **{n_home_evs}** |
 """)
 
 else:
