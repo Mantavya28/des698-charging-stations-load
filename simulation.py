@@ -1,5 +1,5 @@
 """
-City-Level EV Battery Swap Charging Load Engine
+City-Level EV Battery EV Charging Load Engine
 ================================================
 Demand  →  Queue  →  Charging  →  Load (kW) + Energy (kWh)
 
@@ -51,7 +51,7 @@ def load_demand_curve() -> np.ndarray:
 
 def generate_simulation_curve(morning_peak: float, evening_peak: float) -> np.ndarray:
     """
-    Generates a demand curve (swaps per 15-min slot) by scaling the historic
+    Generates a demand curve (EVs per 15-min slot) by scaling the historic
     profile to hit non-normalized absolute morning and evening peaks.
     
     Morning window: 05:00 - 14:00 (slots 20 - 56)
@@ -94,9 +94,9 @@ def run_simulation(
 
     Parameters
     ----------
-    max_demand            : Peak city-level swap arrivals per 15-min interval
+    max_demand            : Peak city-level EV arrivals per 15-min interval
     demand_curve          : Normalized shape array, 96 values in [0, 1]
-    num_stations          : Number of swapping stations (M)
+    num_stations          : Number of EVping stations (M)
     chargers_per_station  : Chargers per station (c)
     charger_power_kw      : Power per charger in kW (P)
     battery_kwh           : Full battery capacity in kWh (E_max)
