@@ -587,8 +587,7 @@ def run_ev_simulation(
     random_seed: int = 42,
 ) -> Dict:
     """
-    High-level entrypoint matching the original run_simulation() signature
-    so app.py can swap in with minimal changes.
+    so app.py can use it as a drop-in replacement.
 
     demand_curve : normalized shape (96,) — 15-min slots
     Returns      : same keys as original, plus ev-level metrics

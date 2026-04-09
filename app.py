@@ -8,7 +8,7 @@ from ev_simulation import run_ev_simulation
 
 # ── PAGE CONFIG ──────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="EV Swap Load Engine",
+    page_title="EV Charging Load Engine",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -159,9 +159,9 @@ with st.sidebar:
     st.markdown("---")
 
     st.markdown("**🏙️ City Demand Peaks**")
-    m_peak = st.slider("Morning Peak (swaps/15 min)", 10, 500, 120, step=5,
+    m_peak = st.slider("Morning Peak (EVs/15 min)", 10, 500, 120, step=5,
                        help="Peak arrivals around 09:00")
-    e_peak = st.slider("Evening Peak (swaps/15 min)", 10, 500, 150, step=5,
+    e_peak = st.slider("Evening Peak (EVs/15 min)", 10, 500, 150, step=5,
                        help="Peak arrivals around 18:30")
 
     DYNAMIC_CURVE = generate_simulation_curve(m_peak, e_peak)
@@ -207,8 +207,8 @@ st.markdown("""
 # ── DEMAND CURVE PREVIEW ──────────────────────────────────────────────────────
 st.markdown('<div class="sec-head">📈 City Demand Profile</div>', unsafe_allow_html=True)
 st.markdown(
-    f'<div class="sec-sub">Typical 24-hour swap demand curve derived from historical data &nbsp;·&nbsp; '
-    f'Expected Peak = {int(np.max(DYNAMIC_CURVE))} swaps / 15 min</div>',
+    f'<div class="sec-sub">Typical 24-hour EV charging demand curve derived from historical data &nbsp;·&nbsp; '
+    f'Expected Peak = {int(np.max(DYNAMIC_CURVE))} EVs / 15 min</div>',
     unsafe_allow_html=True,
 )
 
@@ -230,7 +230,7 @@ with st.container():
     ax_d.set_xticks([0, 16, 32, 48, 64, 80, 95])
     ax_d.set_xticklabels(["00:00", "04:00", "08:00", "12:00",
                            "16:00", "20:00", "23:45"], fontsize=8)
-    ax_d.set_ylabel("Swaps / 15 min", fontsize=8)
+    ax_d.set_ylabel("EVs / 15 min", fontsize=8)
     ax_d.spines[["top", "right"]].set_visible(False)
     ax_d.tick_params(labelsize=8)
     ax_d.grid(axis="y", alpha=0.25, linewidth=0.6)
@@ -275,7 +275,7 @@ if st.session_state.results:
 
     for col, label, value, unit, cls in [
         (c1, "Peak Load",     f"{r['peak_kw']:,.0f}",          "kW",         "blue"),
-        (c2, "Cumulative Demand", f"{r['total_kwh']:,.0f}",         "kWh (Area)", "green"),
+        (c2, "Cumulative Demand", f"{r['total_arrived']:,}",         "Total EVs",  "green"),
         (c3, "Load Factor",   f"{r['load_factor']:.2f}",        "avg / peak", "orange"),
         (c4, "Avg Load",      f"{r['avg_kw']:,.0f}",            "kW",         "purple"),
         (c5, "EVs Served",    f"{r['total_served']:,}",          "EVs",        "teal"),
