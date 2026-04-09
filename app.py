@@ -50,6 +50,10 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     border: 1px solid #E2E8F0;
     box-shadow: 0 2px 10px rgba(0,0,0,0.05);
     text-align: center;
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 .kpi-label {
     font-size: 0.68rem;
@@ -291,55 +295,53 @@ if st.session_state.results:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── LOAD CURVE ─────────────────────────────────────────────────────────
-    st.markdown('<div class="sec-head">⚡ Grid Load Curve (kW)</div>', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="sec-sub">Station charging load + home charging &nbsp;·&nbsp; 15-min resolution</div>',
-        unsafe_allow_html=True,
-    )
-
-    # Decompose station vs home load into 15-min slots
+    # ── LOAD CURVES (SEPARATE) ───────────────────────────────────────────
+    st.markdown('<div class="sec-head">⚡ Station Charging Load (kW)</div>', unsafe_allow_html=True)
+    
     home_min    = np.array(r.get("home_load_min", [0] * 1440))
     station_min = np.array(r.get("station_load_min", [0] * 1440))
     n_slots     = len(load)
+    xticks      = [0, 16, 32, 48, 64, 80, n_slots - 1]
 
     home_15    = np.array([np.mean(home_min[i*15:(i+1)*15]) for i in range(n_slots)])
     station_15 = np.array([np.mean(station_min[i*15:(i+1)*15]) for i in range(n_slots)])
 
-    fig, ax = plt.subplots(figsize=(12, 3.6))
-    fig.patch.set_facecolor("white")
-    ax.set_facecolor("#F8FAFC")
+    fig1, ax1 = plt.subplots(figsize=(12, 3.2))
+    fig1.patch.set_facecolor("white")
+    ax1.set_facecolor("#F8FAFC")
+    ax1.fill_between(slots, station_15, color="#2563EB", alpha=0.7)
+    ax1.plot(slots, station_15, color="#1E40AF", linewidth=1.5)
+    
+    ax1.axhline(r["peak_kw"], color="#EF4444", linewidth=1.1, linestyle="--", alpha=0.4, label="Total Peak")
+    
+    ax1.set_xlim(0, n_slots - 1)
+    ax1.set_ylim(0, max(station_15.max()*1.1, 10))
+    ax1.set_xticks(xticks)
+    ax1.set_xticklabels(["00:00", "04:00", "08:00", "12:00", "16:00", "20:00", "23:45"], fontsize=8)
+    ax1.set_ylabel("kW", fontsize=8)
+    ax1.spines[["top", "right"]].set_visible(False)
+    ax1.grid(axis="y", alpha=0.2)
+    plt.tight_layout(pad=0.5)
+    st.pyplot(fig1, use_container_width=True)
+    plt.close(fig1)
 
-    ax.stackplot(slots, station_15, home_15,
-                 labels=["Station charging (kW)", "Home charging (kW)"],
-                 colors=["#2563EB", "#F59E0B"], alpha=0.75)
-
-    ax.axhline(r["peak_kw"], color="#EF4444", linewidth=1.2, linestyle="--",
-               alpha=0.75, label=f"Peak  {r['peak_kw']:,.0f} kW")
-    ax.axhline(r["avg_kw"],  color="#10B981", linewidth=1.2, linestyle=":",
-               alpha=0.85, label=f"Avg  {r['avg_kw']:,.0f} kW")
-
-    max_cap = num_stations * (n_fast * p_fast + n_slow * p_slow)
-    ax.axhline(max_cap, color="#94A3B8", linewidth=0.9, linestyle="-.",
-               alpha=0.55, label=f"Installed capacity  {max_cap:,.0f} kW")
-
-    xticks = [0, 16, 32, 48, 64, 80, n_slots - 1]
-    ax.set_xlim(0, n_slots - 1)
-    ax.set_ylim(0, max(max_cap * 1.05, r["peak_kw"] * 1.1, 1))
-    ax.set_xticks(xticks)
-    ax.set_xticklabels(["00:00", "04:00", "08:00", "12:00",
-                         "16:00", "20:00", "23:45"], fontsize=9)
-    ax.set_ylabel("Load (kW)", fontsize=9)
-    ax.set_xlabel("Time of Day", fontsize=9)
-    ax.spines[["top", "right"]].set_visible(False)
-    ax.tick_params(labelsize=9)
-    ax.grid(axis="y", alpha=0.25, linewidth=0.6)
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x:,.0f}"))
-    ax.legend(fontsize=8, framealpha=0, ncol=2)
-
-    plt.tight_layout(pad=0.6)
-    st.pyplot(fig, use_container_width=True)
-    plt.close(fig)
+    st.markdown('<div class="sec-head">🏠 Home Charging Load (kW)</div>', unsafe_allow_html=True)
+    
+    fig2, ax2 = plt.subplots(figsize=(12, 3.2))
+    fig2.patch.set_facecolor("white")
+    ax2.set_facecolor("#F8FAFC")
+    ax2.fill_between(slots, home_15, color="#F59E0B", alpha=0.7)
+    ax2.plot(slots, home_15, color="#B45309", linewidth=1.5)
+    ax2.set_xlim(0, n_slots - 1)
+    ax2.set_ylim(0, max(home_15.max()*1.1, 10))
+    ax2.set_xticks(xticks)
+    ax2.set_xticklabels(["00:00", "04:00", "08:00", "12:00", "16:00", "20:00", "23:45"], fontsize=8)
+    ax2.set_ylabel("kW", fontsize=8)
+    ax2.spines[["top", "right"]].set_visible(False)
+    ax2.grid(axis="y", alpha=0.2)
+    plt.tight_layout(pad=0.5)
+    st.pyplot(fig2, use_container_width=True)
+    plt.close(fig2)
 
     # ── SECONDARY METRICS ──────────────────────────────────────────────────
     st.markdown("<br>", unsafe_allow_html=True)
