@@ -186,7 +186,7 @@ with st.sidebar:
         total_chargers = st.number_input("Total Public Chargers", min_value=1, value=int(N_EV / 7))
         total_power = st.number_input("Total Charger Power (kW)", min_value=1.0, value=float(3 * N_EV))
 
-    st.markdown("**⚡ Charger Mix**")
+    st.markdown("**⚡ Public Charging**")
     fast_share = st.slider("Fast Charging Share", 0.0, 1.0, 0.4)
     p_fast = st.number_input("Fast Charger Power (kW)", value=60.0)
     p_slow = st.number_input("Slow Charger Power (kW)", value=7.4)
