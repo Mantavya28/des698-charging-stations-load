@@ -165,9 +165,14 @@ with st.sidebar:
     st.markdown("### 🚗 EV Population")
     N_EV = st.number_input("Total EVs in City", min_value=1000, max_value=10_000_000, value=100_000, step=10_000)
     f_charge = st.slider("% EVs Charging Daily", 0.1, 0.6, 0.3)
+    st.markdown("**⏱️ Daily Charging Pattern**")
+    m_ratio = st.slider("Relative Morning Peak", 0.1, 3.0, 0.8, step=0.1)
+    e_ratio = st.slider("Relative Evening Peak", 0.1, 3.0, 1.2, step=0.1)
+    
+    shaped_curve = generate_simulation_curve(m_ratio, e_ratio)
     
     N_daily = N_EV * f_charge
-    curve_normalized = BASE_CURVE / BASE_CURVE.sum()
+    curve_normalized = shaped_curve / shaped_curve.sum()
     DYNAMIC_CURVE = curve_normalized * N_daily
 
     st.markdown("**🏬 Network Configuration**")
