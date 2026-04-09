@@ -275,7 +275,7 @@ if st.session_state.results:
 
     for col, label, value, unit, cls in [
         (c1, "Peak Load",     f"{r['peak_kw']:,.0f}",          "kW",         "blue"),
-        (c2, "Daily Energy",  f"{r['total_kwh']:,.0f}",         "kWh",        "green"),
+        (c2, "Cumulative Demand", f"{r['total_kwh']:,.0f}",         "kWh (Area)", "green"),
         (c3, "Load Factor",   f"{r['load_factor']:.2f}",        "avg / peak", "orange"),
         (c4, "Avg Load",      f"{r['avg_kw']:,.0f}",            "kW",         "purple"),
         (c5, "EVs Served",    f"{r['total_served']:,}",          "EVs",        "teal"),
