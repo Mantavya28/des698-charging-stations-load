@@ -232,7 +232,8 @@ st.markdown('<div class="sec-head">📈 City Demand Profile vs Capacity</div>', 
 peak = DYNAMIC_CURVE.max()
 st.markdown(
     f'<div class="sec-sub">Derived from EV population and charging behavior &nbsp;·&nbsp; '
-    f'Derived Peak = {int(peak)} EVs / 15 min</div>',
+    f'Derived Peak = {int(peak)} EVs / 15 min<br>'
+    f'Service Capacity = {int(capacity_per_slot)} EVs / slot</div>',
     unsafe_allow_html=True,
 )
 
@@ -244,7 +245,6 @@ with st.container():
     slots    = np.arange(96)
 
     ax_d.plot(slots, DYNAMIC_CURVE, color="#2563EB", linewidth=2.0, label="Charging Demand (EVs / 15 min)")
-    ax_d.plot([], [], ' ', label=f"Service Capacity: {int(capacity_per_slot)} EVs/slot")
 
     ax_d.set_xlim(0, 95)
     ax_d.set_ylim(0)
