@@ -166,10 +166,9 @@ with st.sidebar:
     N_EV = st.number_input("Total EVs in City", min_value=1000, max_value=10_000_000, value=100_000, step=10_000)
     f_charge = st.slider("% EVs Charging Daily", 0.1, 0.6, 0.3)
     st.markdown("**⏱️ Daily Charging Pattern**")
-    m_ratio = st.slider("Relative Morning Peak", 0.1, 3.0, 0.8, step=0.1)
-    e_ratio = st.slider("Relative Evening Peak", 0.1, 3.0, 1.2, step=0.1)
+    peak_ratio = st.slider("Morning / Evening Peak Ratio", 0.1, 10.0, 1.0, step=0.1)
     
-    shaped_curve = generate_simulation_curve(m_ratio, e_ratio)
+    shaped_curve = generate_simulation_curve(peak_ratio, 1.0)
     
     N_daily = N_EV * f_charge
     curve_normalized = shaped_curve / shaped_curve.sum()
@@ -245,19 +244,7 @@ with st.container():
     slots    = np.arange(96)
 
     ax_d.plot(slots, DYNAMIC_CURVE, color="#2563EB", linewidth=2.0, label="Charging Demand (EVs / 15 min)")
-    # Capacity line
-    ax_d.axhline(y=capacity_per_slot, color="#EF4444", linewidth=1.5, linestyle="--", label="Service Capacity")
-    # Overload region
-    ax_d.fill_between(
-        slots,
-        DYNAMIC_CURVE,
-        capacity_per_slot,
-        where=(DYNAMIC_CURVE > capacity_per_slot),
-        color="#EF4444",
-        alpha=0.3,
-        label="Capacity Overload",
-        interpolate=True
-    )
+    ax_d.plot([], [], ' ', label=f"Service Capacity: {int(capacity_per_slot)} EVs/slot")
 
     ax_d.set_xlim(0, 95)
     ax_d.set_ylim(0)
