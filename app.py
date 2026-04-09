@@ -168,13 +168,16 @@ with st.sidebar:
 
     st.markdown("**🏬 Network Configuration**")
     num_stations = st.slider("Number of stations",   1, 20,  8)
-    chargers_per = st.slider("Chargers per station", 2, 30, 10)
+    
+    st.markdown("**⚡ Fast Chargers (DC)**")
+    n_fast = st.slider("Fast chargers / station", 0, 20, 5)
+    p_fast = st.slider("Fast charger power (kW)", 25.0, 150.0, 50.0, step=5.0)
 
-    st.markdown("**🔌 Charger Specifications**")
-    charger_type = st.selectbox("Charger type", ["fast", "slow"])
-    charger_kw   = st.slider("Charger power (kW)", 3.3, 150.0, 50.0
-                             if charger_type == "fast" else 7.4,
-                             step=0.1, format="%.1f kW")
+    st.markdown("**🔌 Slow Chargers (AC)**")
+    n_slow = st.slider("Slow chargers / station", 0, 20, 5)
+    p_slow = st.slider("Slow charger power (kW)", 3.3, 22.0, 7.4, step=0.1)
+
+    st.markdown("**🔋 Vehicle Specs**")
     battery_kwh  = st.slider("Battery capacity (kWh)", 10.0, 100.0, 30.0,
                               step=1.0, format="%.0f kWh")
 
@@ -251,10 +254,11 @@ if run_btn:
             max_demand=int(np.max(DYNAMIC_CURVE)),
             demand_curve=norm_curve,
             num_stations=num_stations,
-            chargers_per_station=chargers_per,
-            charger_power_kw=charger_kw,
+            n_fast=n_fast,
+            p_fast=p_fast,
+            n_slow=n_slow,
+            p_slow=p_slow,
             battery_kwh=battery_kwh,
-            charger_type=charger_type,
             n_home_evs=n_home_evs,
             home_power_kw=home_power,
         )
@@ -315,7 +319,7 @@ if st.session_state.results:
     ax.axhline(r["avg_kw"],  color="#10B981", linewidth=1.2, linestyle=":",
                alpha=0.85, label=f"Avg  {r['avg_kw']:,.0f} kW")
 
-    max_cap = num_stations * chargers_per * charger_kw
+    max_cap = num_stations * (n_fast * p_fast + n_slow * p_slow)
     ax.axhline(max_cap, color="#94A3B8", linewidth=0.9, linestyle="-.",
                alpha=0.55, label=f"Installed capacity  {max_cap:,.0f} kW")
 
@@ -351,8 +355,8 @@ if st.session_state.results:
 | Battery capacity | **{battery_kwh:.0f} kWh** |
 | Target SoC | **80%** |
 | Energy per charge | **{r['e_battery_kwh']} kWh** |
-| Avg charge duration | **{r['charge_duration_min']:.0f} min** |
-| Charger type | **{charger_type.capitalize()}** |
+| Fast charge (avg) | **{r['fast_charge_min']:.0f} min** |
+| Slow charge (avg) | **{r['slow_charge_min']:.0f} min** |
 """)
 
     with col_b:
@@ -361,9 +365,9 @@ if st.session_state.results:
 | Parameter | Value |
 |---|---|
 | Stations | **{num_stations}** |
-| Chargers per station | **{chargers_per}** |
+| Fast chargers / st | **{n_fast}** |
+| Slow chargers / st | **{n_slow}** |
 | Installed capacity | **{r['installed_kw']:,.0f} kW** |
-| Charger utilisation | **{r['utilization_pct']:.1f}%** |
 | Max wait threshold | **10 min** |
 """)
 

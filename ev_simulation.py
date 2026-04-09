@@ -547,21 +547,25 @@ class EVChargingSimulation:
 
 def build_stations_cfg(
     num_stations: int,
-    chargers_per_station: int,
-    charger_power_kw: float,
-    charger_type: str = "fast",
+    n_fast: int,
+    p_fast: float,
+    n_slow: int,
+    p_slow: float,
 ) -> List[Dict]:
-    """Generate a uniform station configuration for the UI."""
+    """Generate a uniform station configuration with mixed charger types."""
     cfg = []
     for i in range(num_stations):
         angle = 2 * math.pi * i / max(num_stations, 1)
+        chargers = []
+        for _ in range(n_fast):
+            chargers.append({"type": "fast", "power_kw": p_fast})
+        for _ in range(n_slow):
+            chargers.append({"type": "slow", "power_kw": p_slow})
+            
         cfg.append({
             "id": i,
             "location": (math.cos(angle), math.sin(angle)),
-            "chargers": [
-                {"type": charger_type, "power_kw": charger_power_kw}
-                for _ in range(chargers_per_station)
-            ],
+            "chargers": chargers,
         })
     return cfg
 
@@ -570,10 +574,11 @@ def run_ev_simulation(
     max_demand: int,
     demand_curve: np.ndarray,
     num_stations: int,
-    chargers_per_station: int,
-    charger_power_kw: float,
+    n_fast: int,
+    p_fast: float,
+    n_slow: int,
+    p_slow: float,
     battery_kwh: float,
-    charger_type: str = "fast",
     n_home_evs: int = 0,
     home_power_kw: float = 3.3,
     random_seed: int = 42,
@@ -592,7 +597,7 @@ def run_ev_simulation(
     lam_per_min_full = np.repeat(lam_per_min, 15)  # (1440,)
 
     stations_cfg = build_stations_cfg(
-        num_stations, chargers_per_station, charger_power_kw, charger_type
+        num_stations, n_fast, p_fast, n_slow, p_slow
     )
 
     sim = EVChargingSimulation(
@@ -608,11 +613,22 @@ def run_ev_simulation(
 
     # backward-compat fields
     results["e_battery_kwh"]      = round(battery_kwh * 0.8, 2)
-    results["charge_duration_min"] = round(charging_time_fast(
-        EV(0, 0.0, 0.2, battery_kwh=battery_kwh), charger_power_kw
-    ), 1) if charger_type == "fast" else round(
-        charging_time_slow(EV(0, 0.0, 0.2, battery_kwh=battery_kwh), charger_power_kw), 1
-    )
+    
+    # Calculate representative charge durations
+    if n_fast > 0:
+        results["fast_charge_min"] = round(charging_time_fast(
+            EV(0, 0.0, 0.2, battery_kwh=battery_kwh), p_fast
+        ), 1)
+    else:
+        results["fast_charge_min"] = 0
+        
+    if n_slow > 0:
+        results["slow_charge_min"] = round(
+            charging_time_slow(EV(0, 0.0, 0.2, battery_kwh=battery_kwh), p_slow), 1
+        )
+    else:
+        results["slow_charge_min"] = 0
+        
     results["total_dropped_pct"] = round(
         100 * results["total_dropped"] / max(1, results["total_arrived"]), 1
     )
